@@ -1,0 +1,46 @@
+{
+  "name": "@haex-space/federation",
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.15.1",
+  "description": "Federation SDK for haex-space — zero-trust server-to-server relay auth",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haex-space/haex-federation.git"
+  },
+  "keywords": [
+    "federation",
+    "relay",
+    "did-auth",
+    "ed25519",
+    "zero-trust",
+    "haex"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.0"
+  }
+}
