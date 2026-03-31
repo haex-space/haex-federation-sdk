@@ -4,7 +4,6 @@ import {
   verifyFederatedAuth,
   parseFederatedAuthHeader,
   computeRequestHash,
-  type SignFn,
   type VerifyFn,
   type DidToPublicKeyFn,
 } from '../src/index'
@@ -16,6 +15,8 @@ const { subtle } = crypto
 async function generateTestKeypair() {
   const keypair = await subtle.generateKey('Ed25519', true, ['sign', 'verify']) as CryptoKeyPair
   const rawPublicKey = new Uint8Array(await subtle.exportKey('raw', keypair.publicKey))
+  const pkcs8 = new Uint8Array(await subtle.exportKey('pkcs8', keypair.privateKey))
+  const privateKeyBase64 = btoa(String.fromCharCode(...pkcs8))
 
   // Build did:key from raw public key
   const multicodec = new Uint8Array(2 + 32)
@@ -48,11 +49,7 @@ async function generateTestKeypair() {
   }
   const did = `did:key:z${encoded}`
 
-  const sign: SignFn = async (data) => {
-    return new Uint8Array(await subtle.sign('Ed25519', keypair.privateKey, data))
-  }
-
-  return { did, rawPublicKey, sign, keypair }
+  return { did, rawPublicKey, privateKeyBase64, keypair }
 }
 
 // base58btc decode for didToPublicKey
@@ -83,8 +80,8 @@ const didToPublicKey: DidToPublicKeyFn = (did: string) => {
 }
 
 const verifyEd25519: VerifyFn = async (publicKey, signature, data) => {
-  const key = await subtle.importKey('raw', publicKey, { name: 'Ed25519' }, false, ['verify'])
-  return subtle.verify('Ed25519', key, signature, data)
+  const key = await subtle.importKey('raw', new Uint8Array(publicKey), { name: 'Ed25519' }, false, ['verify'])
+  return subtle.verify('Ed25519', key, new Uint8Array(signature), new Uint8Array(data))
 }
 
 // ── Tests ────────────────────────────────────────────────────────────
@@ -111,9 +108,9 @@ describe('requestHash', () => {
 
 describe('createFederatedAuthHeader', () => {
   it('creates a valid DID auth header', async () => {
-    const { did, sign } = await generateTestKeypair()
+    const { did, privateKeyBase64 } = await generateTestKeypair()
 
-    const header = await createFederatedAuthHeader(did, sign, 'sync-pull', {
+    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-pull', {
       spaceId: 'space-123',
       serverDid: 'did:web:home.example.com',
       relayDid: 'did:web:relay.example.com',
@@ -125,9 +122,9 @@ describe('createFederatedAuthHeader', () => {
 
 describe('parseFederatedAuthHeader', () => {
   it('parses a federated auth header', async () => {
-    const { did, sign } = await generateTestKeypair()
+    const { did, privateKeyBase64 } = await generateTestKeypair()
 
-    const header = await createFederatedAuthHeader(did, sign, 'sync-pull', {
+    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-pull', {
       spaceId: 'space-123',
       serverDid: 'did:web:home.example.com',
       relayDid: 'did:web:relay.example.com',
@@ -150,11 +147,11 @@ describe('parseFederatedAuthHeader', () => {
 
 describe('verifyFederatedAuth', () => {
   it('verifies a valid federated auth token', async () => {
-    const { did, sign } = await generateTestKeypair()
+    const { did, privateKeyBase64 } = await generateTestKeypair()
     const body = '{"data":true}'
     const query = 'spaceId=space-123'
 
-    const header = await createFederatedAuthHeader(did, sign, 'sync-push', {
+    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-push', {
       spaceId: 'space-123',
       serverDid: 'did:web:home.example.com',
       relayDid: 'did:web:relay.example.com',
@@ -171,11 +168,11 @@ describe('verifyFederatedAuth', () => {
   })
 
   it('rejects tampered body', async () => {
-    const { did, sign } = await generateTestKeypair()
+    const { did, privateKeyBase64 } = await generateTestKeypair()
     const body = '{"data":true}'
     const query = 'spaceId=space-123'
 
-    const header = await createFederatedAuthHeader(did, sign, 'sync-push', {
+    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-push', {
       spaceId: 'space-123',
       serverDid: 'did:web:home.example.com',
       relayDid: 'did:web:relay.example.com',
@@ -190,11 +187,11 @@ describe('verifyFederatedAuth', () => {
   })
 
   it('rejects tampered query', async () => {
-    const { did, sign } = await generateTestKeypair()
+    const { did, privateKeyBase64 } = await generateTestKeypair()
     const body = ''
     const query = 'spaceId=space-123'
 
-    const header = await createFederatedAuthHeader(did, sign, 'sync-pull', {
+    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-pull', {
       spaceId: 'space-123',
       serverDid: 'did:web:home.example.com',
       relayDid: 'did:web:relay.example.com',
@@ -205,10 +202,10 @@ describe('verifyFederatedAuth', () => {
   })
 
   it('rejects expired token', async () => {
-    const { did, sign } = await generateTestKeypair()
+    const { did, privateKeyBase64 } = await generateTestKeypair()
 
     // Create with 1ms expiry
-    const header = await createFederatedAuthHeader(did, sign, 'sync-pull', {
+    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-pull', {
       spaceId: 'space-123',
       serverDid: 'did:web:home.example.com',
       relayDid: 'did:web:relay.example.com',
@@ -224,25 +221,22 @@ describe('verifyFederatedAuth', () => {
     }
   })
 
-  it('rejects signature from wrong key', async () => {
+  it('rejects when Eve signs but claims to be Alice', async () => {
     const alice = await generateTestKeypair()
     const eve = await generateTestKeypair()
 
-    // Alice signs
-    const header = await createFederatedAuthHeader(alice.did, alice.sign, 'sync-pull', {
+    // Eve signs a request claiming to be Alice (uses Alice's DID but Eve's key)
+    const header = await createFederatedAuthHeader(alice.did, eve.privateKeyBase64, 'sync-pull', {
       spaceId: 'space-123',
       serverDid: 'did:web:home.example.com',
       relayDid: 'did:web:relay.example.com',
     })
 
-    // Forge: replace DID with Eve's but keep Alice's signature
-    const forgedHeader = header.replace(
-      encodeURIComponent(JSON.stringify({ did: alice.did })).slice(0, 20),
-      'TAMPERED',
-    )
-
-    // Just verify the original header succeeds
-    const valid = await verifyFederatedAuth(header, verifyEd25519, didToPublicKey, '', '')
-    expect('error' in valid).toBe(false)
+    // Verification extracts public key from Alice's DID but signature is Eve's → mismatch
+    const result = await verifyFederatedAuth(header, verifyEd25519, didToPublicKey, '', '')
+    expect('error' in result).toBe(true)
+    if ('error' in result) {
+      expect(result.error).toContain('Invalid signature')
+    }
   })
 })

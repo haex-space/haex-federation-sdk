@@ -6,7 +6,7 @@ export type {
 } from './types'
 
 // Creating federated auth headers (client-side)
-export { createFederatedAuthHeader, type SignFn } from './create'
+export { createFederatedAuthHeader } from './create'
 
 // Verifying federated auth tokens (server-side)
 export {

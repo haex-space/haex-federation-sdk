@@ -12,12 +12,6 @@ import type { FederatedAuthParams, FederatedAuthPayload } from './types'
 const DEFAULT_EXPIRY_MS = 10_000 // 10 seconds
 
 /**
- * Sign function type — takes raw bytes and returns an Ed25519 signature.
- * This abstraction allows both WebCrypto (browser/Bun) and Node crypto.
- */
-export type SignFn = (data: Uint8Array) => Promise<Uint8Array>
-
-/**
  * Create a federated DID-Auth Authorization header value.
  *
  * Format: `DID <base64url(payload)>.<base64url(signature)>`
@@ -25,10 +19,18 @@ export type SignFn = (data: Uint8Array) => Promise<Uint8Array>
  * The payload contains all federation fields, signed by the user's Ed25519 key.
  * Neither the relay nor the home server can modify any field without
  * invalidating the signature.
+ *
+ * @param did - User's DID (did:key:z...)
+ * @param privateKeyBase64 - PKCS8-encoded Ed25519 private key as Base64
+ * @param action - What the user wants to do (e.g., sync-pull, sync-push)
+ * @param federation - Space, relay, and home server binding
+ * @param body - Request body (empty string for GET)
+ * @param queryString - URL query string (without leading ?)
+ * @param expiresInMs - Expiry window in ms (default: 10s)
  */
 export async function createFederatedAuthHeader(
   did: string,
-  sign: SignFn,
+  privateKeyBase64: string,
   action: string,
   federation: FederatedAuthParams,
   body?: string,
@@ -52,7 +54,19 @@ export async function createFederatedAuthHeader(
   const payloadJson = JSON.stringify(payload)
   const payloadEncoded = base64urlEncode(new TextEncoder().encode(payloadJson))
 
-  const signature = await sign(new TextEncoder().encode(payloadEncoded))
+  const privateKey = await importEd25519PrivateKey(privateKeyBase64)
+  const signature = new Uint8Array(
+    await crypto.subtle.sign('Ed25519', privateKey, new TextEncoder().encode(payloadEncoded)),
+  )
 
   return `DID ${payloadEncoded}.${base64urlEncode(signature)}`
+}
+
+async function importEd25519PrivateKey(base64: string): Promise<CryptoKey> {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return crypto.subtle.importKey('pkcs8', bytes, { name: 'Ed25519' }, false, ['sign'])
 }
