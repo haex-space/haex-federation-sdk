@@ -1,6 +1,6 @@
 {
   "name": "@haex-space/federation",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "packageManager": "pnpm@10.15.1",
   "description": "Federation SDK for haex-space — zero-trust server-to-server relay auth",
   "repository": {
