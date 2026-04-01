@@ -7,7 +7,7 @@
 
 import { base64urlEncode } from './encoding'
 import { computeRequestHash } from './requestHash'
-import type { FederatedAuthParams, FederatedAuthPayload } from './types'
+import type { CreateFederatedAuthOptions, FederatedAuthPayload } from './types'
 
 const DEFAULT_EXPIRY_MS = 10_000 // 10 seconds
 
@@ -19,24 +19,10 @@ const DEFAULT_EXPIRY_MS = 10_000 // 10 seconds
  * The payload contains all federation fields, signed by the user's Ed25519 key.
  * Neither the relay nor the home server can modify any field without
  * invalidating the signature.
- *
- * @param did - User's DID (did:key:z...)
- * @param privateKeyBase64 - PKCS8-encoded Ed25519 private key as Base64
- * @param action - What the user wants to do (e.g., sync-pull, sync-push)
- * @param federation - Space, relay, and home server binding
- * @param body - Request body (empty string for GET)
- * @param queryString - URL query string (without leading ?)
- * @param expiresInMs - Expiry window in ms (default: 10s)
  */
-export async function createFederatedAuthHeader(
-  did: string,
-  privateKeyBase64: string,
-  action: string,
-  federation: FederatedAuthParams,
-  body?: string,
-  queryString?: string,
-  expiresInMs?: number,
-): Promise<string> {
+export async function createFederatedAuthHeader(options: CreateFederatedAuthOptions): Promise<string> {
+  const { did, privateKeyBase64, action, federation, body, queryString, expiresInMs } = options
+
   const requestHash = await computeRequestHash(body ?? '', queryString ?? '')
 
   const now = Date.now()

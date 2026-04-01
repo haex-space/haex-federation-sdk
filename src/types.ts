@@ -39,3 +39,27 @@ export interface VerifiedFederatedAuth {
   requestHash: string
   expiresAt: number
 }
+
+/**
+ * Options for creating a federated DID-Auth header.
+ */
+export interface CreateFederatedAuthOptions {
+  did: string
+  privateKeyBase64: string
+  action: string
+  federation: FederatedAuthParams
+  body?: string
+  queryString?: string
+  expiresInMs?: number
+}
+
+/**
+ * Options for verifying a federated DID-Auth token.
+ */
+export interface VerifyFederatedAuthOptions {
+  authHeader: string
+  verify: (publicKey: Uint8Array, signature: Uint8Array, data: Uint8Array) => Promise<boolean>
+  didToPublicKey: (did: string) => Uint8Array
+  requestBody: string
+  requestQueryString: string
+}

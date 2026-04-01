@@ -3,6 +3,8 @@ export type {
   FederatedAuthParams,
   FederatedAuthPayload,
   VerifiedFederatedAuth,
+  CreateFederatedAuthOptions,
+  VerifyFederatedAuthOptions,
 } from './types'
 
 // Creating federated auth headers (client-side)

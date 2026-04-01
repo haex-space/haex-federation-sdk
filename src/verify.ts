@@ -8,7 +8,7 @@
 
 import { base64urlDecode } from './encoding'
 import { computeRequestHash } from './requestHash'
-import type { FederatedAuthPayload, VerifiedFederatedAuth } from './types'
+import type { FederatedAuthPayload, VerifiedFederatedAuth, VerifyFederatedAuthOptions } from './types'
 
 /**
  * Verify function type — takes a raw Ed25519 public key (32 bytes),
@@ -62,13 +62,9 @@ export function parseFederatedAuthHeader(authHeader: string): FederatedAuthPaylo
  * Does NOT check serverDid/relayDid — caller must do that.
  * Does NOT check space membership — caller must do that.
  */
-export async function verifyFederatedAuth(
-  authHeader: string,
-  verify: VerifyFn,
-  didToPublicKey: DidToPublicKeyFn,
-  requestBody: string,
-  requestQueryString: string,
-): Promise<VerifiedFederatedAuth | { error: string }> {
+export async function verifyFederatedAuth(options: VerifyFederatedAuthOptions): Promise<VerifiedFederatedAuth | { error: string }> {
+  const { authHeader, verify, didToPublicKey, requestBody, requestQueryString } = options
+
   if (!authHeader.startsWith('DID ')) {
     return { error: 'Invalid auth scheme — expected DID' }
   }

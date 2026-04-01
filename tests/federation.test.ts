@@ -84,6 +84,12 @@ const verifyEd25519: VerifyFn = async (publicKey, signature, data) => {
   return subtle.verify('Ed25519', key, new Uint8Array(signature), new Uint8Array(data))
 }
 
+const FEDERATION = {
+  spaceId: 'space-123',
+  serverDid: 'did:web:home.example.com',
+  relayDid: 'did:web:relay.example.com',
+}
+
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('requestHash', () => {
@@ -110,11 +116,14 @@ describe('createFederatedAuthHeader', () => {
   it('creates a valid DID auth header', async () => {
     const { did, privateKeyBase64 } = await generateTestKeypair()
 
-    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-pull', {
-      spaceId: 'space-123',
-      serverDid: 'did:web:home.example.com',
-      relayDid: 'did:web:relay.example.com',
-    }, '', 'spaceId=space-123')
+    const header = await createFederatedAuthHeader({
+      did,
+      privateKeyBase64,
+      action: 'sync-pull',
+      federation: FEDERATION,
+      body: '',
+      queryString: 'spaceId=space-123',
+    })
 
     expect(header).toMatch(/^DID [A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
   })
@@ -124,10 +133,11 @@ describe('parseFederatedAuthHeader', () => {
   it('parses a federated auth header', async () => {
     const { did, privateKeyBase64 } = await generateTestKeypair()
 
-    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-pull', {
-      spaceId: 'space-123',
-      serverDid: 'did:web:home.example.com',
-      relayDid: 'did:web:relay.example.com',
+    const header = await createFederatedAuthHeader({
+      did,
+      privateKeyBase64,
+      action: 'sync-pull',
+      federation: FEDERATION,
     })
 
     const parsed = parseFederatedAuthHeader(header)
@@ -139,7 +149,6 @@ describe('parseFederatedAuthHeader', () => {
   })
 
   it('returns null for non-federated DID auth', () => {
-    // A standard DID-Auth header without federation fields
     const parsed = parseFederatedAuthHeader('DID eyJkaWQiOiJ0ZXN0IiwiYWN0aW9uIjoic3luYyIsInRpbWVzdGFtcCI6MCwiYm9keUhhc2giOiJ4In0.fake')
     expect(parsed).toBeNull()
   })
@@ -151,13 +160,22 @@ describe('verifyFederatedAuth', () => {
     const body = '{"data":true}'
     const query = 'spaceId=space-123'
 
-    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-push', {
-      spaceId: 'space-123',
-      serverDid: 'did:web:home.example.com',
-      relayDid: 'did:web:relay.example.com',
-    }, body, query)
+    const header = await createFederatedAuthHeader({
+      did,
+      privateKeyBase64,
+      action: 'sync-push',
+      federation: FEDERATION,
+      body,
+      queryString: query,
+    })
 
-    const result = await verifyFederatedAuth(header, verifyEd25519, didToPublicKey, body, query)
+    const result = await verifyFederatedAuth({
+      authHeader: header,
+      verify: verifyEd25519,
+      didToPublicKey,
+      requestBody: body,
+      requestQueryString: query,
+    })
     expect('error' in result).toBe(false)
     if (!('error' in result)) {
       expect(result.did).toBe(did)
@@ -172,14 +190,22 @@ describe('verifyFederatedAuth', () => {
     const body = '{"data":true}'
     const query = 'spaceId=space-123'
 
-    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-push', {
-      spaceId: 'space-123',
-      serverDid: 'did:web:home.example.com',
-      relayDid: 'did:web:relay.example.com',
-    }, body, query)
+    const header = await createFederatedAuthHeader({
+      did,
+      privateKeyBase64,
+      action: 'sync-push',
+      federation: FEDERATION,
+      body,
+      queryString: query,
+    })
 
-    // Verify with tampered body
-    const result = await verifyFederatedAuth(header, verifyEd25519, didToPublicKey, '{"data":false}', query)
+    const result = await verifyFederatedAuth({
+      authHeader: header,
+      verify: verifyEd25519,
+      didToPublicKey,
+      requestBody: '{"data":false}',
+      requestQueryString: query,
+    })
     expect('error' in result).toBe(true)
     if ('error' in result) {
       expect(result.error).toContain('tampered')
@@ -191,30 +217,47 @@ describe('verifyFederatedAuth', () => {
     const body = ''
     const query = 'spaceId=space-123'
 
-    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-pull', {
-      spaceId: 'space-123',
-      serverDid: 'did:web:home.example.com',
-      relayDid: 'did:web:relay.example.com',
-    }, body, query)
+    const header = await createFederatedAuthHeader({
+      did,
+      privateKeyBase64,
+      action: 'sync-pull',
+      federation: FEDERATION,
+      body,
+      queryString: query,
+    })
 
-    const result = await verifyFederatedAuth(header, verifyEd25519, didToPublicKey, body, 'spaceId=space-EVIL')
+    const result = await verifyFederatedAuth({
+      authHeader: header,
+      verify: verifyEd25519,
+      didToPublicKey,
+      requestBody: body,
+      requestQueryString: 'spaceId=space-EVIL',
+    })
     expect('error' in result).toBe(true)
   })
 
   it('rejects expired token', async () => {
     const { did, privateKeyBase64 } = await generateTestKeypair()
 
-    // Create with 1ms expiry
-    const header = await createFederatedAuthHeader(did, privateKeyBase64, 'sync-pull', {
-      spaceId: 'space-123',
-      serverDid: 'did:web:home.example.com',
-      relayDid: 'did:web:relay.example.com',
-    }, '', '', 1)
+    const header = await createFederatedAuthHeader({
+      did,
+      privateKeyBase64,
+      action: 'sync-pull',
+      federation: FEDERATION,
+      body: '',
+      queryString: '',
+      expiresInMs: 1,
+    })
 
-    // Wait for expiry
     await new Promise(r => setTimeout(r, 10))
 
-    const result = await verifyFederatedAuth(header, verifyEd25519, didToPublicKey, '', '')
+    const result = await verifyFederatedAuth({
+      authHeader: header,
+      verify: verifyEd25519,
+      didToPublicKey,
+      requestBody: '',
+      requestQueryString: '',
+    })
     expect('error' in result).toBe(true)
     if ('error' in result) {
       expect(result.error).toContain('expired')
@@ -225,15 +268,20 @@ describe('verifyFederatedAuth', () => {
     const alice = await generateTestKeypair()
     const eve = await generateTestKeypair()
 
-    // Eve signs a request claiming to be Alice (uses Alice's DID but Eve's key)
-    const header = await createFederatedAuthHeader(alice.did, eve.privateKeyBase64, 'sync-pull', {
-      spaceId: 'space-123',
-      serverDid: 'did:web:home.example.com',
-      relayDid: 'did:web:relay.example.com',
+    const header = await createFederatedAuthHeader({
+      did: alice.did,
+      privateKeyBase64: eve.privateKeyBase64,
+      action: 'sync-pull',
+      federation: FEDERATION,
     })
 
-    // Verification extracts public key from Alice's DID but signature is Eve's → mismatch
-    const result = await verifyFederatedAuth(header, verifyEd25519, didToPublicKey, '', '')
+    const result = await verifyFederatedAuth({
+      authHeader: header,
+      verify: verifyEd25519,
+      didToPublicKey,
+      requestBody: '',
+      requestQueryString: '',
+    })
     expect('error' in result).toBe(true)
     if ('error' in result) {
       expect(result.error).toContain('Invalid signature')
