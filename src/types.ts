@@ -63,3 +63,17 @@ export interface VerifyFederatedAuthOptions {
   requestBody: string
   requestQueryString: string
 }
+
+/**
+ * Options for building a FEDERATION server-to-server auth header.
+ * Used by relay servers to forward requests to home servers.
+ */
+export interface BuildFederationAuthHeaderOptions {
+  serverDid: string
+  privateKeyPkcs8Base64: string
+  action: string
+  body: string
+  ucanToken: string
+  userAuthorization?: string
+  expiresInMs?: number
+}

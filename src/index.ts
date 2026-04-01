@@ -5,10 +5,14 @@ export type {
   VerifiedFederatedAuth,
   CreateFederatedAuthOptions,
   VerifyFederatedAuthOptions,
+  BuildFederationAuthHeaderOptions,
 } from './types'
 
 // Creating federated auth headers (client-side)
 export { createFederatedAuthHeader } from './create'
+
+// Building FEDERATION server-to-server auth headers (relay-side)
+export { buildFederationAuthHeader } from './federation'
 
 // Verifying federated auth tokens (server-side)
 export {
