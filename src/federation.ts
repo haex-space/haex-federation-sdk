@@ -1,7 +1,7 @@
 /**
  * Build FEDERATION server-to-server auth headers.
  *
- * Used by RELAY SERVERS to forward requests to home servers.
+ * Used by RELAY SERVERS to forward requests to origin servers.
  * The header proves relay identity (Ed25519 signature over payload)
  * and carries the user's embedded authorization.
  *

@@ -2,7 +2,7 @@
  * Create federated DID-Auth headers.
  *
  * Used by the CLIENT to sign requests that will flow through a relay server.
- * The signature binds to: user + relay + home server + space + request content + expiry.
+ * The signature binds to: user + relay + origin server + space + request content + expiry.
  */
 
 import { base64urlEncode } from './encoding'
@@ -17,7 +17,7 @@ const DEFAULT_EXPIRY_MS = 10_000 // 10 seconds
  * Format: `DID <base64url(payload)>.<base64url(signature)>`
  *
  * The payload contains all federation fields, signed by the user's Ed25519 key.
- * Neither the relay nor the home server can modify any field without
+ * Neither the relay nor the origin server can modify any field without
  * invalidating the signature.
  */
 export async function createFederatedAuthHeader(options: CreateFederatedAuthOptions): Promise<string> {

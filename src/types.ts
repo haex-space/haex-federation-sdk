@@ -4,7 +4,7 @@
 
 /**
  * Parameters for creating a federated DID-Auth header.
- * Binds the request to a specific user + relay + home server + space.
+ * Binds the request to a specific user + relay + origin server + space.
  */
 export interface FederatedAuthParams {
   spaceId: string
@@ -66,7 +66,7 @@ export interface VerifyFederatedAuthOptions {
 
 /**
  * Options for building a FEDERATION server-to-server auth header.
- * Used by relay servers to forward requests to home servers.
+ * Used by relay servers to forward requests to origin servers.
  */
 export interface BuildFederationAuthHeaderOptions {
   serverDid: string

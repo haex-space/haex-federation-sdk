@@ -1,9 +1,9 @@
 /**
  * Verify federated DID-Auth tokens.
  *
- * Used by BOTH relay and home server to validate user-signed requests.
+ * Used by BOTH relay and origin server to validate user-signed requests.
  * - Relay: checks `relayDid` matches itself
- * - Home: checks `serverDid` matches itself, verifies membership + role
+ * - Origin: checks `serverDid` matches itself, verifies membership
  */
 
 import { base64urlDecode } from './encoding'
