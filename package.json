@@ -1,11 +1,11 @@
 {
-  "name": "@haex-space/federation",
+  "name": "@haex-space/federation-sdk",
   "version": "0.2.1",
   "packageManager": "pnpm@10.15.1",
   "description": "Federation SDK for haex-space — zero-trust server-to-server relay auth",
   "repository": {
     "type": "git",
-    "url": "https://github.com/haex-space/haex-federation.git"
+    "url": "https://github.com/haex-space/haex-federation-sdk.git"
   },
   "keywords": [
     "federation",
